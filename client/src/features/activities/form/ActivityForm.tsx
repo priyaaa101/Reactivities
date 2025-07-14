@@ -1,26 +1,34 @@
 import { Box, Button, Paper, TextField, Typography } from "@mui/material";
 import type { FormEvent } from "react";
+import { useActivities } from "../../../lib/hooks/useActivities";
 
 type Props = {
     activity? : Activity
     closeForm: () => void
-    submitForm: (activity: Activity) => void
 }
 
-export default function ActivityForm({activity, closeForm, submitForm}: Props) {
+export default function ActivityForm({activity, closeForm}: Props) {
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const {updateActivity, createActivity} = useActivities();
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         
         const formData = new FormData(event.currentTarget);
-        const data: {[key: string]: FormDataEntryValue} = {}
 
+        const data: {[key: string]: FormDataEntryValue} = {}
         formData.forEach((value, key) => {
             data[key] = value;
         });
 
-        if(activity) data.id = activity.id
-        submitForm(data as unknown as Activity);
+        if(activity) {
+            data.id = activity.id
+            await updateActivity.mutateAsync(data as unknown as Activity);
+            closeForm();
+        } else {
+            await createActivity.mutateAsync(data as unknown as Activity);
+            closeForm();
+        }
     }
 
     return (
@@ -32,12 +40,21 @@ export default function ActivityForm({activity, closeForm, submitForm}: Props) {
                 <TextField name='title' label="Title" defaultValue={activity?.title}></TextField>
                 <TextField name='description' label="Description" defaultValue={activity?.description}></TextField>
                 <TextField name='category' label="Category" defaultValue={activity?.category}></TextField>
-                <TextField name='date' label="Date" type="date" defaultValue={activity?.date}></TextField>
+                <TextField name='date' label="Date" type="date" 
+                           defaultValue={activity?.date 
+                               ? new Date(activity.date).toISOString().split('T')[0]
+                               : new Date().toISOString().split('T')[0]
+                           }></TextField>
                 <TextField name='city' label="City" defaultValue={activity?.city}></TextField>
                 <TextField name='venue' label="Venue" defaultValue={activity?.venue}></TextField>
                 <Box display="flex" justifyContent="end" gap={3}>
                     <Button onClick={closeForm} color="inherit">Cancel</Button>
-                    <Button type="submit" color="success" variant="contained">Submit</Button>
+                    <Button 
+                        type="submit" 
+                        color="success" 
+                        variant="contained"
+                        disabled={updateActivity.isPending || createActivity.isPending}
+                    >Submit</Button>
                 </Box>
             </Box>
         </Paper>
